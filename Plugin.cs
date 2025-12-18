@@ -1,12 +1,16 @@
 using BepInEx;
-using Nautilus.Handlers;
-using UnityEngine;
-using Newtonsoft.Json;
-using System.IO;
-using System;
-using System.Collections.Generic;
-using PDALogs;
 using BepInEx.Logging;
+using HarmonyLib;
+using Nautilus.Handlers;
+using PDALogs;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using Unity.Mathematics;
+using UnityEngine;
+using UWE;
+using XGamingRuntime;
 
 namespace CustomPDALogMod
 {
@@ -18,23 +22,79 @@ namespace CustomPDALogMod
         public const string NAME = "Custom PDA Log Mod";
         public const string VERSION = "1.0.2";
 
-        public static ManualLogSource Log;
+        public static ManualLogSource Log { get; private set; }
 
-        private string classidPDA = "233f0235-50b5-4dfe-b5db-a7cdcbeb064e";
-        
+        private static Harmony Harmony;
+
+        public readonly static string classidPDA = "233f0235-50b5-4dfe-b5db-a7cdcbeb064e";
+        public static string PDAchildpath;
+
+
 
         private void Awake()
         {
+            Log = Logger;
+
             Logger.LogInfo($"Loading {NAME} Version Is {VERSION}");
 
-            foreach (string folder in FindJsonDirs()) 
-            {
-                Databanks.LoadLogs(folder);
-            }
-           
+                    foreach (string folder in FindJsonDirs())
+                    {
 
+                        Databanks.LoadLogs(folder);
+                    }
+            WaitScreenHandler.RegisterLateAsyncLoadTask(NAME, WaitForPlayerToSpawn, "Loading/Spawn PDA's");
         }
 
+        public static IEnumerator WaitForPlayerToSpawn(WaitScreenHandler.WaitScreenTask task)
+        {
+            yield return new WaitUntil(() => Databanks.LogsLoaded == true);
+            foreach (JsonDef json in Databanks.LoadedJsons)
+            {
+                try
+                {
+                    Debug.Log("SpawningPda's");
+                    CoroutineHost.StartCoroutine(GetPDAObject(json));
+                }
+                catch(System.Exception expection)
+                {
+                    Log.LogError($"{NAME} Failed To Spawn a PDA Log Error message: {expection.Message}");
+                }
+            }
+        }
+
+        private static IEnumerator GetPDAObject(JsonDef Logsettings)
+        {
+
+            GameObject PDA;
+            var task = PrefabDatabase.GetPrefabAsync(Plugin.classidPDA);
+            yield return task;
+            bool loaded = task.TryGetPrefab(out PDA);
+            if (!loaded)
+            {
+                throw new Exception($"Failed to spawn pda with class id: {Plugin.classidPDA} try a dif one if this happends");
+            }
+
+            GameObject ClonedPDA = string.IsNullOrEmpty(PDAchildpath) ? PDA : PDA.transform.gameObject;
+
+            ClonePDAObject(ClonedPDA, Logsettings.position, Logsettings.rotation, Logsettings.id);
+            
+
+        }
+        // Clone the prefab of the pda at the island base || Ada üssündeki PDA'nın prefabrik modelini klonlayın.
+        
+        private static void ClonePDAObject(GameObject PDA, Vector3 Position, Vector3 Rotation, string key)
+        {
+            GameObject PDAHolderObject = new GameObject();
+            PDAHolderObject.name = "CustomPDALogs";
+            Transform PDAHolderObjectTransform = PDAHolderObject.transform;
+            quaternion PDARotation = quaternion.Euler(Rotation);
+
+            GameObject PDAObject = GameObject.Instantiate(PDA, position: Position, rotation: PDARotation);
+            PDAObject.transform.parent = PDAHolderObjectTransform;
+            StoryHandTarget PDAstoryHandTarget =  PDAObject.GetComponent<StoryHandTarget>();
+            PDAstoryHandTarget.goal.key = key;
+
+        }
 
         private IEnumerable<string> FindJsonDirs()
         {
@@ -54,11 +114,11 @@ namespace CustomPDALogMod
                     continue;
                 }
 
-                string CustomPDAlogsfolder = Path.Combine(Pluginmods, "CustomPDAlogs");
+                string CustomPDAlogsfolder = Path.Combine(Pluginmods, "CustomPDALogMod");
                 // If found return the mod folder || Bulunması durumunda mod klasörünü iade edin.
                 if (Directory.Exists(CustomPDAlogsfolder))
                 {
-                    Logger.LogInfo($"[{NAME}] Found Logs In Folders {Path.GetFileName(Pluginmods)}");
+                    Logger.LogInfo($"[{NAME}] Found Logs In Folders {Path.GetFileName(CustomPDAlogsfolder)}");
                     yield return CustomPDAlogsfolder;
                 }
             }
