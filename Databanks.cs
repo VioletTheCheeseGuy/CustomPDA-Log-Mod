@@ -2,27 +2,34 @@ using CustomPDALogMod;
 using Nautilus.Handlers;
 using Newtonsoft.Json;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using UnityEngine;
+using UWE;
 
 namespace PDALogs
 {
     internal class Databanks
     {
+        public static bool LogsLoaded = false;
 
-        private static readonly List<JsonDef> LoadedJsons = new List<JsonDef>();
+        public static readonly List<JsonDef> LoadedJsons = new List<JsonDef>();
         private static readonly HashSet<string> RegisteredLogs = new HashSet<string>();
 
-        public void RegisterDataBanks(JsonDef logsettings)
+        protected static void RegisterDataBanks(JsonDef logsettings)
         {
-            PDAHandler.AddEncyclopediaEntry
-                (
-                logsettings.id,
-                logsettings.category,
-                logsettings.title,
-                logsettings.description,
-                unlockSound: PDAHandler.UnlockImportant
-                );
+            if (string.IsNullOrEmpty(logsettings.id))
+                throw new Exception("Log id is null or empty");
+            else
+                PDAHandler.AddEncyclopediaEntry
+                    (
+                    logsettings.id,
+                    logsettings.category,
+                    logsettings.title,
+                    logsettings.description,
+                    unlockSound: PDAHandler.UnlockImportant
+                    );
 
             StoryGoalHandler.RegisterCustomEvent(logsettings.id, () =>
             {
@@ -31,11 +38,10 @@ namespace PDALogs
 
             });
             
-
-            
-
-
         }
+
+        
+        
 
         internal static void LoadLogs(string directory)
         {
@@ -48,21 +54,20 @@ namespace PDALogs
 
                     if (log == null)
                     {
-                        throw new Exception($"PDA Log file {Path.GetFileName(dir)} is invalid make sure the def is correct.");
                     }
-
-                    //null; <== will replace once function is set up || Fonksiyon kurulduktan sonra değiştirilecektir.
-                    //null; <== will replace once function is set up || Fonksiyon kurulduktan sonra değiştirilecektir.
+              
+                    RegisterDataBanks(log);
 
 
                     LoadedJsons.Add(log);
 
-                    Plugin.Log.LogInfo($"PDA Log ");
+                    
                 }
                 catch (System.Exception exception)
                 {
-                    Plugin.Log.LogError($"{Plugin.NAME} failed to load log {Path.GetFileName(dir)}: {exception.Message}");
                 }
+
+                LogsLoaded = true;
             }
         }
 
