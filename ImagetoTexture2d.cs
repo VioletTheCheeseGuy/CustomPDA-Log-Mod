@@ -17,13 +17,14 @@ namespace CustomPDALogMod
         public static Texture2D convert(string ImagePath)
         {
             if (!File.Exists(ImagePath))
+            {
                 Plugin.Log.LogError($"Image {ImagePath} is not valid.");
-
                 return null;
+            }
 
             byte[] fileData = File.ReadAllBytes(ImagePath);
 
-            Texture2D texture = new Texture2D(2, 2, TextureFormat.BC5, false);
+            Texture2D texture = new Texture2D(2, 2, TextureFormat.DXT5, false);
 
             if (!ImageConversion.LoadImage(texture, fileData))
                 return null;
