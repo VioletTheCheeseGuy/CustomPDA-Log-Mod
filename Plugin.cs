@@ -28,12 +28,16 @@ namespace CustomPDALogMod
 
         public readonly static string classidPDA = "233f0235-50b5-4dfe-b5db-a7cdcbeb064e";
         public static string PDAchildpath;
+        public static SaveData Pdacache;
 
 
 
         private void Awake()
         {
             Log = Logger;
+
+            Pdacache = SaveDataHandler.RegisterSaveDataCache<SaveData>();
+
 
             Logger.LogInfo($"Loading {NAME} Version Is {VERSION}");
 
@@ -47,13 +51,22 @@ namespace CustomPDALogMod
 
         public static IEnumerator WaitForPlayerToSpawn(WaitScreenHandler.WaitScreenTask task)
         {
+            
             yield return new WaitUntil(() => Databanks.LogsLoaded == true);
             foreach (JsonDef json in Databanks.LoadedJsons)
             {
                 try
                 {
-                    Debug.Log("SpawningPda's");
-                    CoroutineHost.StartCoroutine(GetPDAObject(json));
+                    if (Pdacache.IsColleted(json.id) == false)
+                    {
+                        Debug.Log($"{NAME} SpawningPda's");
+                        Debug.Log($"{NAME} Checking PDA {json.id}, collected? {Pdacache.IsColleted(json.id)}");
+                        CoroutineHost.StartCoroutine(GetPDAObject(json));
+                    }
+                    else
+                    {
+                        Log.LogInfo($"{NAME} Skipping Pda {json.title} Reason: Collected: {Pdacache.IsColleted(json.id)}");
+                    }
                 }
                 catch(System.Exception expection)
                 {
@@ -84,6 +97,7 @@ namespace CustomPDALogMod
         
         private static void ClonePDAObject(GameObject PDA, Vector3 Position, Vector3 Rotation, string key)
         {
+
             GameObject PDAHolderObject = new GameObject();
             PDAHolderObject.name = "CustomPDALogs";
             Transform PDAHolderObjectTransform = PDAHolderObject.transform;
