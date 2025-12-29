@@ -1,7 +1,7 @@
 using Newtonsoft.Json;
 using UnityEngine;
 
-namespace PDALogs
+namespace CustomPDALogMod
 {
     public class JsonDef
     {
@@ -13,6 +13,16 @@ namespace PDALogs
         public string category{ get; set; }
         public Vector3 position{ get; set; }
         public Vector3 rotation{  get; set; }
+
+
+        public bool HasUploadSignel { get; set; } = false;
+        public string SignalLabel { get; set; } = string.Empty;
+        public string SignalID { get; set; } = string.Empty;
+        public bool ShowinPDA { get; set; } = true;
+        public bool Disableonarival { get; set; } = true;
+        public Vector3 signalposition { get; set; } = new Vector3(0f,0f,0f);
+
+
 
     }
 }
