@@ -2,7 +2,7 @@ using BepInEx;
 using BepInEx.Logging;
 using HarmonyLib;
 using Nautilus.Handlers;
-using PDALogs;
+using CustomPDALogMod;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -20,13 +20,14 @@ namespace CustomPDALogMod
     {
         public const string GUID = "TDCDev.CustomPDALogMod";
         public const string NAME = "Custom PDA Log Mod";
-        public const string VERSION = "1.0.2";
+        public const string VERSION = "1.0.4";
 
         public static ManualLogSource Log { get; private set; }
 
         private static Harmony Harmony;
 
         public readonly static string classidPDA = "233f0235-50b5-4dfe-b5db-a7cdcbeb064e";
+        public readonly static string classidSignel = "155f315f-bc11-40f5-b4d3-87587621fa37";
         public static string PDAchildpath;
         public static SaveData Pdacache;
 
@@ -62,6 +63,9 @@ namespace CustomPDALogMod
                         Debug.Log($"{NAME} SpawningPda's");
                         Debug.Log($"{NAME} Checking PDA {json.id}, collected? {Pdacache.IsColleted(json.id)}");
                         CoroutineHost.StartCoroutine(GetPDAObject(json));
+                        if (json.HasUploadSignel == true)
+
+                        CoroutineHost.StartCoroutine(SignelPda.GetSignelObject(classidSignel, json));
                     }
                     else
                     {
