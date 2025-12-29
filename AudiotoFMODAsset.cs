@@ -1,56 +1,142 @@
 using BepInEx;
-using Nautilus.FMod;
-using Nautilus.FMod.Interfaces;
+using CustomPDALogMod;
+using Nautilus.Handlers;
 using Nautilus.Utility;
-using PDALogs;
+using Newtonsoft.Json;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 using UnityEngine;
+using UWE;
 
 namespace CustomPDALogMod
 {
-    internal class AudiotoFMODAsset
+    internal class Databanks
     {
+        public static bool LogsLoaded = false;
+
+        public static readonly List<JsonDef> LoadedJsons = new List<JsonDef>();
+        private static readonly HashSet<string> RegisteredLogs = new HashSet<string>();
+
+        protected static void RegisterDataBanks(JsonDef logsettings, Texture2D image,FMODAsset Audiolog)
+        {
+            var encypath = $"EncyPath_{logsettings.category}"; 
+
+            LanguageHandler.SetLanguageLine(encypath, logsettings.category);
+
+            if (string.IsNullOrEmpty(logsettings.id))
+                throw new Exception("Log id is null or empty");
+            else
+                PDAHandler.AddEncyclopediaEntry
+                    (
+                    logsettings.id,
+                    logsettings.category,
+                    logsettings.title,
+                    logsettings.description,
+                    image,
+                    null,
+                    unlockSound: PDAHandler.UnlockImportant,
+                    Audiolog
+                    
+                    );
+            Plugin.Log.LogInfo($"Log {logsettings.title} has registered.");
+
+            StoryGoalHandler.RegisterCustomEvent(logsettings.id, () =>
+            {
+                PDAEncyclopedia.Add(logsettings.id, true);
+
+                // Save Data Stuff || Verileri Kaydetme Şeyleri
+                Plugin.Pdacache.CollectedPDAs.Add(logsettings.id);
 
 
-        public static FMODAsset ConverttoFMOD(string Audio, JsonDef log)
+                if (logsettings.HasUploadSignel == true)
+                {
+                    SignelPda.EnableSignal(logsettings);
+                    
+                }
+                
+
+            });
+            
+        }
+
+        internal static IEnumerator registerdatabankswithaudio(string audio, JsonDef log)
         {
             Plugin.Log.LogInfo($"starting to convert audiofile to fmod path: {log.Audiofile}");
+            string VoiceLogFMODAsset = AudiotoFMODAsset.ConverttoFMOD(log.Audiofile, log);
 
-            string pathofmodfolder = Path.Combine(Paths.PluginPath, "CustomPDALogMod");
-            string pathoflogfolder = Path.Combine(pathofmodfolder, "logs");
-            string pathofaudiofolder = Path.Combine(pathoflogfolder, "Voicelog");
-            string audiofile = Path.Combine(pathofaudiofolder, Audio);
+            RegisterDataBanks(log, null, AudioUtils.GetFmodAsset(VoiceLogFMODAsset));
 
-            var AudioSources = new ModFolderSoundSource(pathofaudiofolder, Assembly.GetExecutingAssembly());
-            FModSoundBuilder builder = new FModSoundBuilder(AudioSources);
-
-            string Voicelogeventid = $"voicelog_{log.id}_log";
-
-            IFModSoundBuilder eventbuilder = builder.CreateNewEvent(Voicelogeventid, AudioUtils.BusPaths.PDAVoice)
-                .SetMode2D(false)
-                .SetSounds(true, Path.GetFileNameWithoutExtension(log.Audiofile));
-            eventbuilder.SetSound(Audio).SetFadeDuration(0.5f).SetMode2D(false);
-
-            var FModAsset = Nautilus.Utility.AudioUtils.GetFmodAsset(Voicelogeventid);
-
-            if (FModAsset == null)
-            {
-                Plugin.Log.LogError($"Fmod Asset for {log.title} is null make sure the path is correct path for audio:{log.Audiofile}");
-            }
-            else
-            {
-                Plugin.Log.LogInfo($"FMODAsset {FModAsset} has created correctly.");
-                return FModAsset;
-            }
-            return FModAsset;
-
+            yield return VoiceLogFMODAsset;
 
         }
+
+        
+
+
+        internal static IEnumerator RegisterDatabankwithimage(string imagepath, JsonDef log)
+        {
+                string pathofmodfolder = Path.Combine(Paths.PluginPath, "CustomPDALogMod");
+                string pathoflogfolder = Path.Combine(pathofmodfolder, "logs");
+                string pathofimagefolder = Path.Combine(pathoflogfolder, "Image");
+                string pathofimage = Path.Combine(pathofimagefolder, imagepath);
+                Plugin.Log.LogInfo($"attempting to set up pda with image {pathofimage}");
+
+                Texture2D image = ImagetoTexture2d.convert(pathofimage);
+
+                RegisterDataBanks(log, image, null);
+
+                yield return image;
+        }
+        
+
+        internal static void LoadLogs(string directory)
+        {
+            foreach (string dir in Directory.GetFiles(directory, "*.json"))
+            {
+                try
+                {
+                    string json = File.ReadAllText(dir);
+                    JsonDef log = JsonConvert.DeserializeObject<JsonDef>(json);
+
+                    if (log == null)
+                    {
+                    }
+
+                    if (log.Imagepath == string.Empty)
+                    {
+                            RegisterDataBanks(log, null, null);
+                            LoadedJsons.Add(log);
+                        
+                    }
+                    else
+                    {
+
+                        if (log.Audiofile != string.Empty)
+                        {
+                            CoroutineHost.StartCoroutine(registerdatabankswithaudio(log.Audiofile, log));
+                        }
+                        else
+                        {
+
+                            CoroutineHost.StartCoroutine(RegisterDatabankwithimage(log.Imagepath, log));
+                        }
+
+
+                        LoadedJsons.Add(log);
+                    }
+
+                    
+                }
+                catch (System.Exception exception)
+                {
+
+                }
+
+                LogsLoaded = true;
+            }
+        }
+
     }
 }
