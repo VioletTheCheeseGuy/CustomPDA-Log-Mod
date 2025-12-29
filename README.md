@@ -10,6 +10,7 @@ Provides a custom PDA log system for various Subnautica mods.
 NexusMods: https://www.nexusmods.com/subnautica/mods/2866
 
 Hello Im violet im a modder fixing/helping working on this mod.
+
 Edit i am no longer working on this mod as my choice as i dont have alot of time anymore to work on aether void.
 
 The offical Repo for this is at 
