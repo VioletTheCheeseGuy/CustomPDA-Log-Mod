@@ -1,142 +1,58 @@
 using BepInEx;
 using CustomPDALogMod;
+using Nautilus.FMod;
+using Nautilus.FMod.Interfaces;
 using Nautilus.Handlers;
 using Nautilus.Utility;
-using Newtonsoft.Json;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Text;
+using System.Threading.Tasks;
 using UnityEngine;
-using UWE;
 
 namespace CustomPDALogMod
 {
-    internal class Databanks
+    internal class AudiotoFMODAsset
     {
-        public static bool LogsLoaded = false;
 
-        public static readonly List<JsonDef> LoadedJsons = new List<JsonDef>();
-        private static readonly HashSet<string> RegisteredLogs = new HashSet<string>();
-
-        protected static void RegisterDataBanks(JsonDef logsettings, Texture2D image,FMODAsset Audiolog)
+        internal static string pathid;
+        public static string ConverttoFMOD(string AudioPath, JsonDef log)
         {
-            var encypath = $"EncyPath_{logsettings.category}"; 
 
-            LanguageHandler.SetLanguageLine(encypath, logsettings.category);
-
-            if (string.IsNullOrEmpty(logsettings.id))
-                throw new Exception("Log id is null or empty");
-            else
-                PDAHandler.AddEncyclopediaEntry
-                    (
-                    logsettings.id,
-                    logsettings.category,
-                    logsettings.title,
-                    logsettings.description,
-                    image,
-                    null,
-                    unlockSound: PDAHandler.UnlockImportant,
-                    Audiolog
-                    
-                    );
-            Plugin.Log.LogInfo($"Log {logsettings.title} has registered.");
-
-            StoryGoalHandler.RegisterCustomEvent(logsettings.id, () =>
+            try
             {
-                PDAEncyclopedia.Add(logsettings.id, true);
+                var soundSource = new ModFolderSoundSource(Path.Combine(Paths.PluginPath, "CustomPDALogMod", "logs", "Voicelog"), Assembly.GetExecutingAssembly());
+                var soundBuilder = new FModSoundBuilder(soundSource);
 
-                // Save Data Stuff || Verileri Kaydetme Şeyleri
-                Plugin.Pdacache.CollectedPDAs.Add(logsettings.id);
-
-
-                if (logsettings.HasUploadSignel == true)
+                if (log.Audiofile != string.Empty)
                 {
-                    SignelPda.EnableSignal(logsettings);
-                    
-                }
-                
+                    string LogID = $"PdaLog_{log.id}_Audiolog";
 
-            });
-            
-        }
+                    soundBuilder.CreateNewEvent(LogID, AudioUtils.BusPaths.VoiceOvers)
+                                .SetMode2D(false)
+                                .SetSounds(true, Path.GetFileNameWithoutExtension(log.Audiofile))
+                                .Register();
 
-        internal static IEnumerator registerdatabankswithaudio(string audio, JsonDef log)
-        {
-            Plugin.Log.LogInfo($"starting to convert audiofile to fmod path: {log.Audiofile}");
-            string VoiceLogFMODAsset = AudiotoFMODAsset.ConverttoFMOD(log.Audiofile, log);
+                    pathid = LogID;
 
-            RegisterDataBanks(log, null, AudioUtils.GetFmodAsset(VoiceLogFMODAsset));
-
-            yield return VoiceLogFMODAsset;
-
-        }
-
-        
-
-
-        internal static IEnumerator RegisterDatabankwithimage(string imagepath, JsonDef log)
-        {
-                string pathofmodfolder = Path.Combine(Paths.PluginPath, "CustomPDALogMod");
-                string pathoflogfolder = Path.Combine(pathofmodfolder, "logs");
-                string pathofimagefolder = Path.Combine(pathoflogfolder, "Image");
-                string pathofimage = Path.Combine(pathofimagefolder, imagepath);
-                Plugin.Log.LogInfo($"attempting to set up pda with image {pathofimage}");
-
-                Texture2D image = ImagetoTexture2d.convert(pathofimage);
-
-                RegisterDataBanks(log, image, null);
-
-                yield return image;
-        }
-        
-
-        internal static void LoadLogs(string directory)
-        {
-            foreach (string dir in Directory.GetFiles(directory, "*.json"))
-            {
-                try
-                {
-                    string json = File.ReadAllText(dir);
-                    JsonDef log = JsonConvert.DeserializeObject<JsonDef>(json);
-
-                    if (log == null)
-                    {
-                    }
-
-                    if (log.Imagepath == string.Empty)
-                    {
-                            RegisterDataBanks(log, null, null);
-                            LoadedJsons.Add(log);
-                        
-                    }
-                    else
-                    {
-
-                        if (log.Audiofile != string.Empty)
-                        {
-                            CoroutineHost.StartCoroutine(registerdatabankswithaudio(log.Audiofile, log));
-                        }
-                        else
-                        {
-
-                            CoroutineHost.StartCoroutine(RegisterDatabankwithimage(log.Imagepath, log));
-                        }
-
-
-                        LoadedJsons.Add(log);
-                    }
-
-                    
-                }
-                catch (System.Exception exception)
-                {
-
+                    Plugin.Log.LogInfo($"Created Custom Log for  PDA:'{log.id}': From Audio {log.Audiofile}");
+                    return LogID;
                 }
 
-                LogsLoaded = true;
             }
+            catch (System.Exception exception)
+            {
+                Plugin.Log.LogError($"Failed to create custom log for '{log.id}': {exception.Message}");
+                return null;
+            }
+            if (pathid != string.Empty)
+            {
+                return pathid;
+            }
+            return null;
         }
-
     }
 }
